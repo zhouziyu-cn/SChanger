@@ -519,6 +519,15 @@ weight_urls = {
     'cdd':{
         'schanger-base':'https://huggingface.co/Zy-Zhou/schanger/resolve/main/schanger_base_cdd.pth',
         'schanger-small':'https://huggingface.co/Zy-Zhou/schanger/resolve/main/schanger_small_cdd.pth',
+    },
+    'whu-cd':{
+        'schanger-base':'https://huggingface.co/Zy-Zhou/schanger/resolve/main/schanger_base_whu.pth',
+        'schanger-small':'https://huggingface.co/Zy-Zhou/schanger/resolve/main/schanger_small_whu.pth',
+
+    },
+    'sysu-cd':{
+        'schanger-base':'https://huggingface.co/Zy-Zhou/schanger/resolve/main/schanger_base_sysu.pth',
+        'schanger-small':'https://huggingface.co/Zy-Zhou/schanger/resolve/main/schanger_small_sysu.pth',
     }
 }
 def get_url(dataset_name, model_name):
