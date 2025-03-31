@@ -4,6 +4,10 @@
 
 [[`Paper`](https://arxiv.org/abs/2503.20734)]
 
+<p align="center">
+    <img src="./assets/compare.png" width="1200">
+</p>
+
 ### News
 
 - 2025/03, This paper is accepted by jstars.
