@@ -549,7 +549,7 @@ def schanger_small(dataset_name,pretrained=False):
     return model
 
 
-def schanger_base(pretrained=False,dataset_name='LEVIR-CD'):
+def schanger_base(dataset_name,pretrained=False):
     model = SChanger(num_classes=1, input_channels=3, c_list=[8*3,8*4,8*6,8*8,8*13,8*15],dropout=0.2)
     if pretrained:
         url = get_url(dataset_name,'schanger-base')
