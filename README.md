@@ -6,7 +6,7 @@
 
 ### News
 
-- 2023/05, This paper is accepted by jstars.
+- 2025/03, This paper is accepted by jstars.
 
 ### Catalog
 
