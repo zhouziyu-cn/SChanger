@@ -1,0 +1,38 @@
+{
+  "A": {
+    "means": [
+      0.35389370022153016,
+      0.391042128623277,
+      0.3430657129250467
+    ],
+    "stds": [
+      0.15333629660289735,
+      0.15479207785390317,
+      0.1429063016015105
+    ],
+    "samples": 10000
+  },
+  "B": {
+    "means": [
+      0.4732441990595311,
+      0.4986155928853899,
+      0.46873126817047595
+    ],
+    "stds": [
+      0.1606831526578404,
+      0.1639589279582724,
+      0.15758858984299004
+    ],
+    "samples": 10000
+  },
+  "method": "mean of per-image RGB mean/std on 256x256 training patches, scaled to [0,1]",
+  "source": "Historical training normalization files supplied by the paper author",
+  "source_files": [
+    {
+      "file": "CDD/mean_std/t1.json"
+    },
+    {
+      "file": "CDD/mean_std/t2.json"
+    }
+  ]
+}

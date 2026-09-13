@@ -1,0 +1,35 @@
+{
+  "A": {
+    "means": [
+      0.4906890077723397,
+      0.4491115826489223,
+      0.3930196344090307
+    ],
+    "stds": [
+      0.1433577906070162,
+      0.13829191044634914,
+      0.13756053347688338
+    ],
+    "images": 4536,
+    "samples": 4536
+  },
+  "B": {
+    "means": [
+      0.4914005221454082,
+      0.4903548757892227,
+      0.46980905483889096
+    ],
+    "stds": [
+      0.1817076689000299,
+      0.17195927966763866,
+      0.1784981031158062
+    ],
+    "images": 4536,
+    "samples": 4536
+  },
+  "method": "mean of per-sample RGB mean/std on training data, scaled to [0,1]",
+  "tile_size": null,
+  "source": "Recomputed from all 4536 WHU-CD256-HANet training pairs; no validation or test images used",
+  "archive": "3-WHU-CD256-Train,Val,Test-HANet.zip",
+  "source_url": "https://pan.baidu.com/s/16g3H1UsDMgqmXaVjiE319Q?pwd=6969"
+}

@@ -1,0 +1,33 @@
+{
+  "A": {
+    "means": [
+      0.3965957462346802,
+      0.5284619560142358,
+      0.4654002889618278
+    ],
+    "stds": [
+      0.20213536989712155,
+      0.1581118941680373,
+      0.15296702515659855
+    ],
+    "images": 12000,
+    "samples": 12000
+  },
+  "B": {
+    "means": [
+      0.4020236350192378,
+      0.48766126711418234,
+      0.3989568755030632
+    ],
+    "stds": [
+      0.18235274970981602,
+      0.15682769317319617,
+      0.15437150396398888
+    ],
+    "images": 12000,
+    "samples": 12000
+  },
+  "method": "mean of per-sample RGB mean/std on training data, scaled to [0,1]",
+  "tile_size": null,
+  "source": "Recomputed from all 12000 original SYSU-CD training pairs; no validation or test images used"
+}

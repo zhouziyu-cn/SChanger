@@ -1,0 +1,38 @@
+{
+  "A": {
+    "means": [
+      0.44647954328364314,
+      0.4425350729119489,
+      0.37772247105291523
+    ],
+    "stds": [
+      0.17393848294858438,
+      0.16415722704169214,
+      0.15207397340451662
+    ],
+    "samples": 10192
+  },
+  "B": {
+    "means": [
+      0.34149348254723466,
+      0.33470663280786256,
+      0.28560712156317297
+    ],
+    "stds": [
+      0.12841433472657252,
+      0.12489144021947284,
+      0.11756364158419577
+    ],
+    "samples": 10192
+  },
+  "method": "mean of per-image RGB mean/std on 256x256 training patches, scaled to [0,1]",
+  "source": "Historical training normalization files supplied by the paper author",
+  "source_files": [
+    {
+      "file": "LEVIR-CD+_crop/mean_std/t1.json"
+    },
+    {
+      "file": "LEVIR-CD+_crop/mean_std/t2.json"
+    }
+  ]
+}

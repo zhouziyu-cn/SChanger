@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+*.pth
+*.pt
+*.ckpt
+/data/
+/weights/
+/outputs/
+/3-WHU-CD256-Train,Val,Test-HANet.zip

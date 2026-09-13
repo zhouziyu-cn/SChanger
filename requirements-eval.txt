@@ -1,0 +1,5 @@
+# Install the PyTorch build appropriate for your device first (see evaluation/README.md).
+torch>=2.6
+timm>=1.0.15,<2
+numpy>=1.24
+Pillow>=10
