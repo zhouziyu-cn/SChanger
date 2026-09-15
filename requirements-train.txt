@@ -1,0 +1,2 @@
+-r requirements-eval.txt
+albumentations==1.4.0

@@ -1,7 +1,7 @@
 # SChanger evaluation
 
 Evaluate the published base and small checkpoints on six change detection
-datasets.
+datasets. See the root README for training and building segmentation pretraining.
 
 ## Installation
 
@@ -26,8 +26,8 @@ timm 1.0.29, NumPy 2.4.6 and Pillow 12.3.0.
 | `sysu-cd` | `data/SYSU-CD` | `sysu` | 4000 |
 | `whu-cd` | `data/WHU-CD` | `whu` | 2760 |
 
-Download [the published weights](https://huggingface.co/Zy-Zhou/schanger/tree/main)
-to `weights/schanger_{base,small}_{suffix}.pth`.
+Missing [published weights](https://huggingface.co/Zy-Zhou/schanger/tree/main) are
+downloaded automatically to `weights/schanger_{base,small}_{suffix}.pth`.
 
 Dataset sources: [LEVIR-CD](https://justchenhao.github.io/LEVIR/),
 [LEVIR-CD+ and S2Looking](https://github.com/S2Looking/Dataset),
@@ -85,9 +85,9 @@ in [0, 1]. Validation and test images do not contribute.
 | Dataset | Training samples used for statistics |
 | --- | --- |
 | LEVIR-CD | 445 original 1024x1024 pairs |
-| LEVIR-CD+ | 10192 cropped 256x256 pairs; author's saved statistics |
-| S2Looking | 56000 cropped 256x256 pairs; author's saved statistics |
-| CDD | 10000 pairs; author's saved statistics |
+| LEVIR-CD+ | 10192 cropped 256x256 pairs |
+| S2Looking | 56000 cropped 256x256 pairs |
+| CDD | 10000 pairs |
 | SYSU-CD | 12000 pairs |
 | WHU-CD | 4536 pairs from the WHU-CD256-HANet archive |
 

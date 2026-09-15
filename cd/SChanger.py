@@ -4,7 +4,7 @@ from typing import Callable, Optional
 from functools import partial
 from torch import Tensor
 import torch.nn.functional as F
-from timm.models.layers import trunc_normal_
+from timm.layers import trunc_normal_
 import math
 
 
@@ -44,7 +44,8 @@ class LFTM(nn.Module):
             self.dropout = DropPath(dropout_rate)
 
     def forward(self, input):
-        t1, t2 = input
+        single_stream = isinstance(input, Tensor)
+        t1 = input if single_stream else input[0]
         result1 = self.expand_conv(t1)
         result1 = self.dwconv(result1)
         result1 = self.se(result1)
@@ -55,6 +56,10 @@ class LFTM(nn.Module):
                 result1 = self.dropout(result1)
             result1 += t1
 
+        if single_stream:
+            return result1
+
+        t2 = input[1]
         result2 = self.expand_conv(t2)
         result2 = self.dwconv(result2)
         result2 = self.se(result2)
@@ -81,7 +86,7 @@ class ConvBNAct(nn.Module):
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         if activation_layer is None:
-            activation_layer = nn.SiLU  # alias Swish  (torch>=1.7)
+            activation_layer = nn.SiLU
 
         self.conv = nn.Conv2d(in_channels=in_planes,
                               out_channels=out_planes,
@@ -109,7 +114,7 @@ class SqueezeExcite(nn.Module):
         super(SqueezeExcite, self).__init__()
         squeeze_c = int(input_c * se_ratio)
         self.conv_reduce = nn.Conv2d(expand_c, squeeze_c, 1)
-        self.act1 = nn.SiLU()  # alias Swish
+        self.act1 = nn.SiLU()
         self.conv_expand = nn.Conv2d(squeeze_c, expand_c, 1)
         self.act2 = nn.Sigmoid()
 
@@ -122,15 +127,7 @@ class SqueezeExcite(nn.Module):
         return scale * x
     
 def drop_path(x, drop_prob: float = 0., training: bool = False):
-    """Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks).
-
-    This is the same as the DropConnect impl I created for EfficientNet, etc networks, however,
-    the original name is misleading as 'Drop Connect' is a different form of dropout in a separate paper...
-    See discussion: https://github.com/tensorflow/tpu/issues/494#issuecomment-532968956 ... I've opted for
-    changing the layer and argument names to 'drop path' rather than mix DropConnect as a layer name and use
-    'survival rate' as the argument.
-
-    """
+    """Apply stochastic depth per sample."""
     if drop_prob == 0. or not training:
         return x
     keep_prob = 1 - drop_prob
@@ -175,16 +172,24 @@ class LayerNorm(nn.Module):
         
 class SCLKA(nn.Module):
     ''' Spatial Consistency Large Kernel Attention'''
-    def __init__(self, dim):
+    def __init__(self, dim, single_stream=False):
         super().__init__()
-
-        self.diff = TFM(dim*2)
+        self.single_stream = single_stream
+        if not single_stream:
+            self.diff = TFM(dim*2)
         self.conv0 = nn.Conv2d(dim, dim, 5, padding=2, groups=dim)
         self.conv_spatial = nn.Conv2d(
             dim, dim, 7, stride=1, padding=9, groups=dim, dilation=3)
         self.conv1 = nn.Conv2d(dim, dim, 1)
 
     def forward(self, input):
+        if self.single_stream:
+            t1_skip = input.clone()
+            attn = self.conv0(input)
+            attn = self.conv_spatial(attn)
+            attn = self.conv1(attn)
+            return t1_skip * attn
+
         t1, t2 = input
         t1_skip, t2_skip =t1.clone(), t2.clone()
         attn = self.diff((t1, t2))
@@ -194,15 +199,23 @@ class SCLKA(nn.Module):
         return (t1_skip * attn,t2_skip*attn)
     
 class Attention(nn.Module):
-    def __init__(self, d_model):
+    def __init__(self, d_model, single_stream=False):
         super().__init__()
-
+        self.single_stream = single_stream
         self.proj_1 = nn.Conv2d(d_model, d_model, 1)
         self.activation = nn.GELU()
-        self.spatial_gating_unit = SCLKA(d_model)
+        self.spatial_gating_unit = SCLKA(d_model, single_stream=single_stream)
         self.proj_2 = nn.Conv2d(d_model, d_model, 1)
 
     def forward(self, input):
+        if self.single_stream:
+            skip = input.clone()
+            output = self.proj_1(input)
+            output = self.activation(output)
+            output = self.spatial_gating_unit(output)
+            output = self.proj_2(output)
+            return output + skip
+
         t1, t2 = input
         t1_skip, t2_skip =t1.clone(), t2.clone()  
         t1 = self.proj_1(t1)
@@ -260,10 +273,11 @@ class Mlp(nn.Module):
     
 class SCAM(nn.Module):
     """Spatial Consistency Attention Module"""
-    def __init__(self, dim, mlp_ratio=4., drop=0.,drop_path=0., act_layer=nn.GELU):
+    def __init__(self, dim, mlp_ratio=4., drop=0.,drop_path=0., act_layer=nn.GELU, single_stream=False):
         super().__init__()
+        self.single_stream = single_stream
         self.norm1 = nn.BatchNorm2d(dim)
-        self.attn = Attention(dim)
+        self.attn = Attention(dim, single_stream=single_stream)
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
 
         self.norm2 = nn.BatchNorm2d(dim)
@@ -292,6 +306,15 @@ class SCAM(nn.Module):
             if m.bias is not None:
                 m.bias.data.zero_()
     def forward(self, input):
+        if self.single_stream:
+            residual = input
+            output = self.norm1(input)
+            output = self.attn(output)
+            scale1 = self.layer_scale_1.unsqueeze(-1).unsqueeze(-1)
+            output = residual + self.drop_path(scale1 * output)
+            scale2 = self.layer_scale_2.unsqueeze(-1).unsqueeze(-1)
+            return output + self.drop_path(scale2 * self.mlp(self.norm2(output)))
+
         t1, t2 = input
         t1,t2 = self.attn((self.norm1(t1),self.norm1(t2)))
         t1_skip,t2_skip = input
@@ -337,8 +360,10 @@ class TFM(nn.Module):
 
     
 class SChanger(nn.Module):
-    def __init__(self,num_classes=1, input_channels=3, c_list=[8*3,8*4,8*6,8*8,8*13,8*15],dropout=0.2):
+    def __init__(self,num_classes=1, input_channels=3, c_list=[8*3,8*4,8*6,8*8,8*13,8*15],dropout=0.2,
+                 single_stream=False):
         super().__init__()
+        self.single_stream = single_stream
             
         self.encoder1 = nn.Sequential(
             LFTM(in_channel=c_list[0], out_channel=c_list[1],dropout_rate = dropout),
@@ -381,35 +406,38 @@ class SChanger(nn.Module):
             LFTM(in_channel=c_list[1], out_channel=c_list[0],dropout_rate = dropout),
         ) 
 
-        self.head1 = nn.Sequential(TFM(c_list[4]*2),
+        fusion = lambda channels: nn.Identity() if single_stream else TFM(channels * 2)
+        self.head1 = nn.Sequential(fusion(c_list[4]),
                                    Head(c_list[4]))
-        self.head2 = nn.Sequential(TFM(c_list[3]*2),
+        self.head2 = nn.Sequential(fusion(c_list[3]),
                                    Head(c_list[3]))
-        self.head3 = nn.Sequential(TFM(c_list[2]*2),
+        self.head3 = nn.Sequential(fusion(c_list[2]),
                                    Head(c_list[2]))
-        self.head4 = nn.Sequential(TFM(c_list[1]*2),
+        self.head4 = nn.Sequential(fusion(c_list[1]),
                                    Head(c_list[1]))
-        self.head5 = nn.Sequential(TFM(c_list[0]*2),
+        self.head5 = nn.Sequential(fusion(c_list[0]),
                                    Head(c_list[0]))
         self.head6 = nn.Sequential(Head2(5,num_classes))
 
-        #self.ChannelExchange = ChannelExchange(p=2)
-
-
         self.Bi1 = nn.Sequential(
-            SCAM(c_list[5], mlp_ratio=4., drop=dropout,drop_path=dropout, act_layer=nn.GELU)
+            SCAM(c_list[5], mlp_ratio=4., drop=dropout,drop_path=dropout, act_layer=nn.GELU,
+                 single_stream=single_stream)
         ) 
         self.Bi2 = nn.Sequential(
-        SCAM(c_list[4], mlp_ratio=4., drop=dropout,drop_path=dropout, act_layer=nn.GELU)
+        SCAM(c_list[4], mlp_ratio=4., drop=dropout,drop_path=dropout, act_layer=nn.GELU,
+             single_stream=single_stream)
         ) 
         self.Bi3 = nn.Sequential(
-        SCAM(c_list[3], mlp_ratio=4., drop=dropout,drop_path=dropout, act_layer=nn.GELU)
+        SCAM(c_list[3], mlp_ratio=4., drop=dropout,drop_path=dropout, act_layer=nn.GELU,
+             single_stream=single_stream)
         ) 
         self.Bi4 = nn.Sequential(
-        SCAM(c_list[2], mlp_ratio=4., drop=dropout,drop_path=dropout, act_layer=nn.GELU)
+        SCAM(c_list[2], mlp_ratio=4., drop=dropout,drop_path=dropout, act_layer=nn.GELU,
+             single_stream=single_stream)
         ) 
         self.Bi5 = nn.Sequential(
-        SCAM(c_list[1], mlp_ratio=4., drop=dropout,drop_path=dropout, act_layer=nn.GELU)
+        SCAM(c_list[1], mlp_ratio=4., drop=dropout,drop_path=dropout, act_layer=nn.GELU,
+             single_stream=single_stream)
         )  
 
         self.conv_1 = ConvBNAct(input_channels,
@@ -433,6 +461,9 @@ class SChanger(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, input):
+        if self.single_stream:
+            return self._forward_single(input)
+
         x1, x2 = input
         _,c,h,w = x1.shape
         encode_outputs1 = []
@@ -502,6 +533,38 @@ class SChanger(nn.Module):
             return torch.cat([self.head6(outputs), outputs], dim=1)
         else:
             return torch.sigmoid(self.head6(outputs))
+
+    def _forward_single(self, image):
+        _, _, height, width = image.shape
+        skips = []
+        image = self.encoder1(self.conv_1(image))
+        skips.append(image)
+        image = self.encoder2(F.max_pool2d(image, 2, 2))
+        skips.append(image)
+        image = self.encoder3(F.max_pool2d(image, 2, 2))
+        skips.append(image)
+        image = self.encoder4(F.max_pool2d(image, 2, 2))
+        skips.append(image)
+        image = self.encoder5(F.max_pool2d(image, 2, 2))
+
+        outputs = []
+        attention_blocks = (self.Bi1, self.Bi2, self.Bi3, self.Bi4, self.Bi5)
+        decoders = (self.decoder1, self.decoder2, self.decoder3, self.decoder4, self.decoder5)
+        heads = (self.head1, self.head2, self.head3, self.head4, self.head5)
+        for index, (attention, decoder, head) in enumerate(zip(attention_blocks, decoders, heads)):
+            if index:
+                skip = attention(skips.pop())
+                image = F.interpolate(image, scale_factor=2, mode='bilinear', align_corners=True) + skip
+            else:
+                image = attention(image)
+            image = decoder(image)
+            mask = head(image)
+            outputs.append(F.interpolate(mask, size=(height, width), mode='bilinear', align_corners=True))
+        outputs = torch.cat(outputs, dim=1)
+        logits = self.head6(outputs)
+        if self.training:
+            return torch.cat([logits, outputs], dim=1)
+        return torch.sigmoid(logits)
 
 weight_urls = {
     'levir-cd': {

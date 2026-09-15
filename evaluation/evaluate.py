@@ -6,6 +6,7 @@ from bisect import bisect_right
 from functools import lru_cache
 from importlib.metadata import version
 import json
+import os
 from pathlib import Path
 import sys
 import time
@@ -26,12 +27,29 @@ DATASETS = {
     "sysu-cd": ("SYSU-CD", "sysu", 4000, None),
     "whu-cd": ("WHU-CD", "whu", 2760, None),
 }
+WEIGHTS_URL = "https://huggingface.co/Zy-Zhou/schanger/resolve/main"
 
 
 def write_json(path: Path, value: dict) -> None:
     temporary = path.with_suffix(path.suffix + ".tmp")
     temporary.write_text(json.dumps(value, indent=2, allow_nan=False) + "\n", encoding="utf-8")
     temporary.replace(path)
+
+
+def ensure_checkpoint(path: Path, url: str | None = None) -> None:
+    if path.is_file():
+        return
+    if url is None:
+        raise ValueError(f"Checkpoint not found: {path}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".download")
+    temporary.unlink(missing_ok=True)
+    print(f"Downloading checkpoint to {path}", flush=True)
+    try:
+        torch.hub.download_url_to_file(url, temporary, progress=True)
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def paired_files(root: Path, groups: tuple[str, ...]) -> list[str]:
@@ -256,8 +274,7 @@ def main(argv=None):
     sizes = ("base", "small") if args.model == "both" else (args.model,)
     checkpoints = {size: args.checkpoint or args.weights_dir / f"schanger_{size}_{suffix}.pth" for size in sizes}
     for path in checkpoints.values():
-        if not path.is_file():
-            raise ValueError(f"Checkpoint not found: {path}. See evaluation/README.md for weight downloads.")
+        ensure_checkpoint(path, None if args.checkpoint else f"{WEIGHTS_URL}/{path.name}")
     normalization_path = args.normalization
     if not normalization_path and not args.compute_normalization:
         normalization_path = PROJECT_ROOT / "evaluation" / "normalization" / f"{suffix}.json"
@@ -298,8 +315,6 @@ def main(argv=None):
             state = torch.load(checkpoint, map_location="cpu", weights_only=True)
             if not isinstance(state, dict) or "state_dict" not in state:
                 raise ValueError(f"Expected an official checkpoint containing 'state_dict': {checkpoint}")
-            if state["state_dict"] and all(key.startswith("_orig_mod.") for key in state["state_dict"]):
-                torch.nn.modules.utils.consume_prefix_in_state_dict_if_present(state["state_dict"], "_orig_mod.")
             model.load_state_dict(state["state_dict"], strict=True)
             if device.type == "cuda":
                 torch.cuda.synchronize(device)

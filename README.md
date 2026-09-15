@@ -1,4 +1,4 @@
-## SChanger: Change Detection from a Semantic Change and Spatial Consistency Perspective (jstars 2025)
+## SChanger: Change Detection from a Semantic Change and Spatial Consistency Perspective (IEEE JSTARS 2025)
 
 <h5 align="left">Ziyu Zhou, Keyan Hu, Yutian Fang and Xiaoping Rui</h5>
 
@@ -12,7 +12,7 @@
 
 ### News
 
-- 2025/03, This paper is accepted by jstars.
+- 2025/03, Accepted by IEEE JSTARS.
 
 ### Catalog
 
@@ -28,6 +28,18 @@ The current WHU-CD small result is shown in parentheses.
 
 
 ---------------------
+
+### Training
+
+```sh
+python -m pip install -r requirements-train.txt
+python pretrain.py --model base --data-root /datasets/iaild1000
+python train.py --dataset levir-cd --model base --data-root /datasets/LEVIR-CD
+```
+
+Training parameters are in `training_configs.json`. Missing base or small initialization
+weights are downloaded automatically; use `--init` to select another checkpoint or
+`--from-scratch` to disable initialization.
 
 
 
@@ -45,18 +57,21 @@ python evaluation/evaluate.py --dataset sysu-cd
 python evaluation/evaluate.py --dataset whu-cd
 ```
 
-See [evaluation/README.md](evaluation/README.md) for dataset preparation, checkpoint
-links, training normalization, CPU/CUDA options and the evaluation protocol.
+See [evaluation/README.md](evaluation/README.md) for dataset preparation, automatic
+weight downloads, training normalization, CPU/CUDA options and the evaluation protocol.
 
 ### Citation
 
-If you use SChanger models in your research, we hope you can kindly cite the following papers:
+If you use SChanger in your research, please cite:
 ```text
 @article{zhou2025schanger,
   title={SChanger: Change Detection from a Semantic Change and Spatial Consistency Perspective},
   author={Zhou, Ziyu and Hu, Keyan and Fang, Yutian and Rui, Xiaoping},
-  journal={arXiv preprint arXiv:2503.20734},
-  year={2025}
+  journal={IEEE Journal of Selected Topics in Applied Earth Observations and Remote Sensing},
+  volume={18},
+  pages={10186--10203},
+  year={2025},
+  doi={10.1109/JSTARS.2025.3555849}
 }
 ```
 
